@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Repositories\AssetRepository;
+use MongoDB\BSON\Decimal128;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\Exception\BulkWriteException;
@@ -41,7 +42,9 @@ test('assets can be created read updated paginated and deleted through the repos
         ->findOne(['_id' => new ObjectId($asset->id)]);
 
     expect($storedAsset['maintenance']['last_completed_at'])->toBeInstanceOf(UTCDateTime::class)
-        ->and($storedAsset['maintenance']['next_due_at'])->toBeInstanceOf(UTCDateTime::class);
+        ->and($storedAsset['maintenance']['next_due_at'])->toBeInstanceOf(UTCDateTime::class)
+        ->and($storedAsset['acquisition_value'])->toBeInstanceOf(Decimal128::class)
+        ->and((string) $storedAsset['acquisition_value'])->toBe('125000.00');
 
     expect($repository->delete($updatedAsset))->toBeTrue();
     $this->assertModelMissing($updatedAsset);
@@ -86,6 +89,9 @@ test('the collection validator rejects invalid assets', function (array $overrid
         ->toThrow(BulkWriteException::class);
 })->with([
     'invalid status' => [['status' => 'unknown']],
+    'legacy status' => [['status' => 'out_of_service']],
+    'negative acquisition value' => [['acquisition_value' => '-0.01']],
+    'invalid currency' => [['currency' => 'chf']],
     'invalid maintenance interval' => [[
         'maintenance' => ['interval_days' => 0],
     ]],
@@ -104,6 +110,8 @@ function assetAttributes(array $overrides = []): array
         'category' => 'production',
         'status' => Asset::STATUS_ACTIVE,
         'serial_number' => 'SN-CNC-10001',
+        'acquisition_value' => '125000.00',
+        'currency' => 'CHF',
         'location' => [
             'site' => 'Hauptsitz',
             'building' => 'A',

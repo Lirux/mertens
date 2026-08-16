@@ -16,6 +16,8 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string $category
  * @property string $status
  * @property string|null $serial_number
+ * @property string $acquisition_value
+ * @property string $currency
  * @property array{site: string, building: string, room: string}|null $location
  * @property array{external_id: string, name: string}|null $supplier
  * @property array{last_completed_at: UTCDateTime, next_due_at: UTCDateTime, interval_days: int}|null $maintenance
@@ -30,6 +32,8 @@ use MongoDB\Laravel\Eloquent\Model;
     'category',
     'status',
     'serial_number',
+    'acquisition_value',
+    'currency',
     'location',
     'supplier',
     'maintenance',
@@ -45,7 +49,7 @@ class Asset extends Model
 
     public const STATUS_MAINTENANCE = 'maintenance';
 
-    public const STATUS_OUT_OF_SERVICE = 'out_of_service';
+    public const STATUS_INACTIVE = 'inactive';
 
     public const STATUS_RETIRED = 'retired';
 
@@ -53,7 +57,7 @@ class Asset extends Model
     public const STATUSES = [
         self::STATUS_ACTIVE,
         self::STATUS_MAINTENANCE,
-        self::STATUS_OUT_OF_SERVICE,
+        self::STATUS_INACTIVE,
         self::STATUS_RETIRED,
     ];
 
@@ -65,6 +69,7 @@ class Asset extends Model
     protected function casts(): array
     {
         return [
+            'acquisition_value' => 'decimal:2',
             'acquired_at' => 'date',
             'warranty_until' => 'date',
         ];

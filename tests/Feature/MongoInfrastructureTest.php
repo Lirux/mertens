@@ -6,6 +6,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use MongoDB\BSON\Decimal128;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Connection;
 use MongoDB\Model\IndexInfo;
@@ -54,6 +55,18 @@ test('all required collections validators and indexes are provisioned', function
 
     expect($assetCollectionInfo->getOptions())->toHaveKey('validator')
         ->and($userCollectionInfo->getOptions())->toHaveKey('validator');
+
+    $assetSchema = $assetCollectionInfo->getOptions()['validator']['$jsonSchema'];
+
+    expect($assetSchema['required'])->toContain('acquisition_value', 'currency')
+        ->and($assetSchema['properties']['status']['enum'])->toBe([
+            'active',
+            'maintenance',
+            'inactive',
+            'retired',
+        ])
+        ->and($assetSchema['properties']['acquisition_value']['bsonType'])->toBe('decimal')
+        ->and($assetSchema['properties']['currency']['pattern'])->toBe('^[A-Z]{3}$');
 
     $assetIndexes = collect(iterator_to_array($database->assets->listIndexes()))
         ->keyBy(fn (IndexInfo $index): string => $index->getName());
@@ -153,11 +166,18 @@ test('fortify authentication persists users and sessions in mongodb', function (
 test('the database seeder creates reproducible users and assets', function () {
     $this->seed(DatabaseSeeder::class);
 
+    $assets = Asset::query()->get();
+
     expect(User::query()->where('email', 'test@example.com')->count())->toBe(1)
-        ->and(Asset::query()->pluck('asset_number')->all())->toEqualCanonicalizing([
+        ->and($assets->pluck('asset_number')->all())->toEqualCanonicalizing([
             'AST-00001',
             'AST-00002',
             'AST-00003',
             'AST-00004',
-        ]);
+        ])
+        ->and($assets->pluck('currency')->unique()->all())->toBe(['CHF'])
+        ->and($assets->every(
+            fn (Asset $asset): bool => $asset->getRawOriginal('acquisition_value') instanceof Decimal128,
+        ))->toBeTrue()
+        ->and($assets->firstWhere('asset_number', 'AST-00004')?->status)->toBe(Asset::STATUS_INACTIVE);
 });

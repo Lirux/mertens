@@ -33,6 +33,8 @@ class AssetFactory extends Factory
             'category' => fake()->randomElement(['production', 'logistics', 'measurement']),
             'status' => fake()->randomElement(Asset::STATUSES),
             'serial_number' => 'SN-'.fake()->unique()->bothify('????-#####'),
+            'acquisition_value' => number_format(fake()->randomFloat(2, 500, 250000), 2, '.', ''),
+            'currency' => 'CHF',
             'location' => [
                 'site' => 'Hauptsitz',
                 'building' => fake()->randomElement(['A', 'B', 'C']),
