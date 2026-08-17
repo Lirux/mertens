@@ -39,6 +39,7 @@ test('all required collections validators and indexes are provisioned', function
         'jobs',
         'migrations',
         'password_reset_tokens',
+        'personal_access_tokens',
         'sessions',
         'users',
     ];
@@ -52,9 +53,13 @@ test('all required collections validators and indexes are provisioned', function
     $userCollectionInfo = iterator_to_array($database->listCollections([
         'filter' => ['name' => 'users'],
     ]), false)[0];
+    $tokenCollectionInfo = iterator_to_array($database->listCollections([
+        'filter' => ['name' => 'personal_access_tokens'],
+    ]), false)[0];
 
     expect($assetCollectionInfo->getOptions())->toHaveKey('validator')
-        ->and($userCollectionInfo->getOptions())->toHaveKey('validator');
+        ->and($userCollectionInfo->getOptions())->toHaveKey('validator')
+        ->and($tokenCollectionInfo->getOptions())->toHaveKey('validator');
 
     $assetSchema = $assetCollectionInfo->getOptions()['validator']['$jsonSchema'];
 
@@ -74,7 +79,19 @@ test('all required collections validators and indexes are provisioned', function
     expect($assetIndexes->get('assets_asset_number_unique')?->isUnique())->toBeTrue()
         ->and($assetIndexes->get('assets_serial_number_unique')?->isUnique())->toBeTrue()
         ->and($assetIndexes->get('assets_serial_number_unique')?->isSparse())->toBeTrue()
-        ->and($assetIndexes)->toHaveKey('status_1_maintenance.next_due_at_1');
+        ->and($assetIndexes)->toHaveKeys([
+            'status_1_maintenance.next_due_at_1',
+            'assets_updated_at_id_sync',
+        ]);
+
+    $tokenIndexes = collect(iterator_to_array($database->personal_access_tokens->listIndexes()))
+        ->keyBy(fn (IndexInfo $index): string => $index->getName());
+
+    expect($tokenIndexes->get('personal_access_tokens_token_unique')?->isUnique())->toBeTrue()
+        ->and($tokenIndexes)->toHaveKeys([
+            'personal_access_tokens_tokenable_index',
+            'personal_access_tokens_expires_at_index',
+        ]);
 
     $uniqueIndexes = [
         'users' => 'users_email_unique',

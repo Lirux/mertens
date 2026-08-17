@@ -1,0 +1,2573 @@
+{
+  "info": {
+    "_postman_id": "f2a7273a-0a82-4f19-96c5-bbfecaa5b3f3",
+    "name": "Mertens AG Asset Web API – Funktionale Tests",
+    "description": "Vollständige funktionale Testsuite für Aufgabe 4.2.4. Die Collection ist für genau eine vollständige Runner-Iteration ausgelegt, erzeugt ausschließlich eindeutig markierte Testassets und löscht sie wieder. Tokens werden ausschließlich über eine lokale Umgebung bereitgestellt.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{fullAccessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "if (!pm.collectionVariables.get(\"runId\")) {",
+          "    const randomPart = Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, \"0\");",
+          "    pm.collectionVariables.set(\"runId\", `${Date.now().toString(36)}-${randomPart}`);",
+          "}",
+          "pm.request.headers.upsert({ key: \"Accept\", value: \"application/json\" });"
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "pm.test(\"Keine unbehandelte Serverantwort\", function () {",
+          "    pm.expect(pm.response.code).to.be.below(500);",
+          "});",
+          "if (pm.response.code !== 204) {",
+          "    pm.test(\"Antwort verwendet JSON\", function () {",
+          "        pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+          "    });",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "unknownObjectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authAssetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "crudAssetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listAssetAId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listAssetBId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listAssetCId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listAssetAUpdatedAt",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listLimitSecondId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "duplicateAssetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rateLimitAttempt",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Setup",
+      "description": "Initialisiert einen eindeutigen Testlauf und prüft Server sowie alle benötigten Token-Variablen.",
+      "item": [
+        {
+          "name": "SETUP-01 – Umgebung und Server prüfen",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const requiredVariables = [\"apiBaseUrl\", \"fullAccessToken\", \"readOnlyToken\", \"writeOnlyToken\", \"rateLimitToken\"];",
+                  "requiredVariables.forEach(function (name) {",
+                  "    pm.test(`Umgebungsvariable ${name} ist gesetzt`, function () {",
+                  "        const value = pm.environment.get(name);",
+                  "        pm.expect(value, `${name} darf nicht leer sein`).to.be.a(\"string\").and.not.empty;",
+                  "    });",
+                  "});",
+                  "const randomPart = Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, \"0\");",
+                  "pm.collectionVariables.set(\"runId\", `${Date.now().toString(36)}-${randomPart}`);",
+                  "pm.collectionVariables.set(\"unknownObjectId\", Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join(\"\"));",
+                  "[\"authAssetId\", \"crudAssetId\", \"listAssetAId\", \"listAssetBId\", \"listAssetCId\", \"listAssetAUpdatedAt\", \"listLimitSecondId\", \"duplicateAssetId\", \"rateLimitAttempt\"].forEach((name) => pm.collectionVariables.unset(name));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Server und Full-Access-Token sind einsatzbereit\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "pm.test(\"Preflight liefert ein JSON-Array\", function () {",
+                  "    pm.expect(assets).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=1",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Erzeugt eine neue runId, entfernt alte Laufvariablen und prüft die lokale API mit dem Full-Access-Token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 Authentisierung",
+      "description": "Prüft, dass jede Route fehlende Tokens ablehnt und ungültige Tokens nicht akzeptiert.",
+      "item": [
+        {
+          "name": "AUTH-01 – GET Liste ohne Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erwartet 401 für die Listenroute ohne Bearer Token.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-02 – POST ohne Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erwartet 401 für das Erstellen ohne Bearer Token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-NOAUTH-POST\",\n  \"serialNumber\": \"SN-PM-{{runId}}-NOAUTH-POST\",\n  \"name\": \"Postman Test Asset NOAUTH-POST\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-03 – GET Einzelasset ohne Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{unknownObjectId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{unknownObjectId}}"
+              ]
+            },
+            "description": "Erwartet 401 vor der Auflösung der unbekannten ObjectId.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-04 – PUT ohne Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{unknownObjectId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{unknownObjectId}}"
+              ]
+            },
+            "description": "Erwartet 401 für eine vollständige Aktualisierung ohne Token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-NOAUTH-PUT\",\n  \"serialNumber\": \"SN-PM-{{runId}}-NOAUTH-PUT\",\n  \"name\": \"Postman Test Asset NOAUTH-PUT\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-05 – DELETE ohne Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{unknownObjectId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{unknownObjectId}}"
+              ]
+            },
+            "description": "Erwartet 401 für das Löschen ohne Token.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTH-06 – Ungültiger Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erwartet 401 für einen syntaktisch vorhandenen, aber unbekannten Bearer Token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{invalidToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Autorisierung",
+      "description": "Prüft die Trennung der Fähigkeiten assets:read und assets:write.",
+      "item": [
+        {
+          "name": "AUTHZ-01 – Read-Token darf lesen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Antwort ist eine Liste\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Der Read-Token darf die Asset-Liste abrufen.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-02 – Write-Token erstellt Testasset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"authAssetId\", asset.id);",
+                  "const expectedFields = [\"id\", \"inventoryNumber\", \"serialNumber\", \"name\", \"category\", \"status\", \"location\", \"acquisitionDate\", \"acquisitionValue\", \"currency\", \"updatedAt\"];",
+                  "pm.test(\"Antwort enthält exakt die dokumentierten Asset-Felder\", function () {",
+                  "    pm.expect(Object.keys(asset).sort()).to.eql(expectedFields.sort());",
+                  "});",
+                  "pm.test(\"ObjectId wird als undurchsichtiger String geliefert\", function () {",
+                  "    pm.expect(asset.id).to.match(/^[0-9a-f]{24}$/);",
+                  "});",
+                  "pm.test(\"Datums-, Geld- und Währungsformate stimmen\", function () {",
+                  "    pm.expect(asset.acquisitionDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "    pm.expect(asset.updatedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/);",
+                  "    pm.expect(asset.acquisitionValue).to.be.a(\"number\");",
+                  "    pm.expect(asset.currency).to.match(/^[A-Z]{3}$/);",
+                  "});",
+                  "pm.test(\"Interne Persistenzfelder bleiben verborgen\", function () {",
+                  "    pm.expect(asset).not.to.have.any.keys(\"supplier\", \"maintenance\", \"warranty_until\", \"asset_number\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Der Write-Token darf ein Asset erstellen; die ID wird für PUT- und DELETE-Rechte gespeichert.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{writeOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-AUTHZ\",\n  \"serialNumber\": \"SN-PM-{{runId}}-AUTHZ\",\n  \"name\": \"Postman Test Asset AUTHZ\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-03 – Read-Token darf nicht erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "POST mit Read-Token muss 403 liefern.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-AUTHZ-DENIED\",\n  \"serialNumber\": \"SN-PM-{{runId}}-AUTHZ-DENIED\",\n  \"name\": \"Postman Test Asset AUTHZ-DENIED\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-04 – Read-Token darf nicht aktualisieren",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{authAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{authAssetId}}"
+              ]
+            },
+            "description": "PUT mit Read-Token muss 403 liefern.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-AUTHZ\",\n  \"serialNumber\": \"SN-PM-{{runId}}-AUTHZ\",\n  \"name\": \"Nicht erlaubte Änderung\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-05 – Read-Token darf nicht löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{authAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{authAssetId}}"
+              ]
+            },
+            "description": "DELETE mit Read-Token muss 403 liefern.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-06 – Write-Token darf nicht lesen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "GET mit Write-Token muss 403 liefern.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{writeOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-07 – Write-Token darf aktualisieren",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.test(\"Änderung wurde gespeichert\", () => { pm.expect(asset.name).to.equal(\"Postman Authz aktualisiert\"); pm.expect(asset.status).to.equal(\"maintenance\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{authAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{authAssetId}}"
+              ]
+            },
+            "description": "PUT mit Write-Token muss die vollständige Aktualisierung erlauben.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{writeOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-AUTHZ\",\n  \"serialNumber\": \"SN-PM-{{runId}}-AUTHZ\",\n  \"name\": \"Postman Authz aktualisiert\",\n  \"category\": \"production\",\n  \"status\": \"maintenance\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AUTHZ-08 – Write-Token darf löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.test(\"Antwortkörper ist leer\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  "pm.collectionVariables.unset(\"authAssetId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{authAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{authAssetId}}"
+              ]
+            },
+            "description": "DELETE mit Write-Token räumt das Autorisierungs-Testasset auf.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{writeOnlyToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 CRUD und Antwortvertrag",
+      "description": "Führt einen vollständigen Lebenszyklus aus und prüft den öffentlichen JSON-Vertrag.",
+      "item": [
+        {
+          "name": "CRUD-01 – Asset erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"crudAssetId\", asset.id);",
+                  "const expectedFields = [\"id\", \"inventoryNumber\", \"serialNumber\", \"name\", \"category\", \"status\", \"location\", \"acquisitionDate\", \"acquisitionValue\", \"currency\", \"updatedAt\"];",
+                  "pm.test(\"Antwort enthält exakt die dokumentierten Asset-Felder\", function () {",
+                  "    pm.expect(Object.keys(asset).sort()).to.eql(expectedFields.sort());",
+                  "});",
+                  "pm.test(\"ObjectId wird als undurchsichtiger String geliefert\", function () {",
+                  "    pm.expect(asset.id).to.match(/^[0-9a-f]{24}$/);",
+                  "});",
+                  "pm.test(\"Datums-, Geld- und Währungsformate stimmen\", function () {",
+                  "    pm.expect(asset.acquisitionDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "    pm.expect(asset.updatedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/);",
+                  "    pm.expect(asset.acquisitionValue).to.be.a(\"number\");",
+                  "    pm.expect(asset.currency).to.match(/^[A-Z]{3}$/);",
+                  "});",
+                  "pm.test(\"Interne Persistenzfelder bleiben verborgen\", function () {",
+                  "    pm.expect(asset).not.to.have.any.keys(\"supplier\", \"maintenance\", \"warranty_until\", \"asset_number\");",
+                  "});",
+                  "pm.test(\"Erstellte Werte stimmen\", function () { pm.expect(asset.inventoryNumber).to.equal(`AST-PM-${pm.collectionVariables.get(\"runId\")}-CRUD`); pm.expect(asset.acquisitionValue).to.equal(1250.5); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erstellt ein vollständiges Asset und speichert seine ObjectId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-CRUD\",\n  \"serialNumber\": \"SN-PM-{{runId}}-CRUD\",\n  \"name\": \"Postman Test Asset CRUD\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-02 – Erstelltes Asset in Liste finden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "pm.test(\"Erstellte ID ist in der Liste\", () => pm.expect(assets.map((asset) => asset.id)).to.include(pm.collectionVariables.get(\"crudAssetId\")));",
+                  "pm.test(\"Liste ist stabil nach updatedAt und ID sortiert\", function () {",
+                  "    for (let index = 1; index < assets.length; index += 1) {",
+                  "        const previous = assets[index - 1];",
+                  "        const current = assets[index];",
+                  "        const correctlyOrdered = previous.updatedAt < current.updatedAt",
+                  "            || (previous.updatedAt === current.updatedAt && previous.id.localeCompare(current.id) <= 0);",
+                  "        pm.expect(correctlyOrdered).to.equal(true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=100",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Prüft, dass das neue Asset über die Listenroute auffindbar ist."
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-03 – Einzelasset abrufen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "const expectedFields = [\"id\", \"inventoryNumber\", \"serialNumber\", \"name\", \"category\", \"status\", \"location\", \"acquisitionDate\", \"acquisitionValue\", \"currency\", \"updatedAt\"];",
+                  "pm.test(\"Antwort enthält exakt die dokumentierten Asset-Felder\", function () {",
+                  "    pm.expect(Object.keys(asset).sort()).to.eql(expectedFields.sort());",
+                  "});",
+                  "pm.test(\"ObjectId wird als undurchsichtiger String geliefert\", function () {",
+                  "    pm.expect(asset.id).to.match(/^[0-9a-f]{24}$/);",
+                  "});",
+                  "pm.test(\"Datums-, Geld- und Währungsformate stimmen\", function () {",
+                  "    pm.expect(asset.acquisitionDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "    pm.expect(asset.updatedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/);",
+                  "    pm.expect(asset.acquisitionValue).to.be.a(\"number\");",
+                  "    pm.expect(asset.currency).to.match(/^[A-Z]{3}$/);",
+                  "});",
+                  "pm.test(\"Interne Persistenzfelder bleiben verborgen\", function () {",
+                  "    pm.expect(asset).not.to.have.any.keys(\"supplier\", \"maintenance\", \"warranty_until\", \"asset_number\");",
+                  "});",
+                  "pm.test(\"ID stimmt\", () => pm.expect(asset.id).to.equal(pm.collectionVariables.get(\"crudAssetId\")));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{crudAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{crudAssetId}}"
+              ]
+            },
+            "description": "Liest das erstellte Asset über seine ID."
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-04 – Asset vollständig aktualisieren",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "const expectedFields = [\"id\", \"inventoryNumber\", \"serialNumber\", \"name\", \"category\", \"status\", \"location\", \"acquisitionDate\", \"acquisitionValue\", \"currency\", \"updatedAt\"];",
+                  "pm.test(\"Antwort enthält exakt die dokumentierten Asset-Felder\", function () {",
+                  "    pm.expect(Object.keys(asset).sort()).to.eql(expectedFields.sort());",
+                  "});",
+                  "pm.test(\"ObjectId wird als undurchsichtiger String geliefert\", function () {",
+                  "    pm.expect(asset.id).to.match(/^[0-9a-f]{24}$/);",
+                  "});",
+                  "pm.test(\"Datums-, Geld- und Währungsformate stimmen\", function () {",
+                  "    pm.expect(asset.acquisitionDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+                  "    pm.expect(asset.updatedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/);",
+                  "    pm.expect(asset.acquisitionValue).to.be.a(\"number\");",
+                  "    pm.expect(asset.currency).to.match(/^[A-Z]{3}$/);",
+                  "});",
+                  "pm.test(\"Interne Persistenzfelder bleiben verborgen\", function () {",
+                  "    pm.expect(asset).not.to.have.any.keys(\"supplier\", \"maintenance\", \"warranty_until\", \"asset_number\");",
+                  "});",
+                  "pm.test(\"PUT hat alle Werte ersetzt\", function () { pm.expect(asset.inventoryNumber).to.equal(`AST-PM-${pm.collectionVariables.get(\"runId\")}-CRUD-UPDATED`); pm.expect(asset.serialNumber).to.equal(null); pm.expect(asset.status).to.equal(\"inactive\"); pm.expect(asset.acquisitionValue).to.equal(995.25); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{crudAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{crudAssetId}}"
+              ]
+            },
+            "description": "Ersetzt die vollständige veränderbare Repräsentation über PUT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-CRUD-UPDATED\",\n  \"serialNumber\": null,\n  \"name\": \"Postman CRUD aktualisiert\",\n  \"category\": \"measurement\",\n  \"status\": \"inactive\",\n  \"location\": {\n    \"site\": \"Werk Nord\",\n    \"building\": \"B\",\n    \"room\": \"204\"\n  },\n  \"acquisitionDate\": \"2024-02-29\",\n  \"acquisitionValue\": 995.25,\n  \"currency\": \"EUR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-05 – Aktualisierung erneut lesen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.test(\"Aktualisierte Repräsentation ist persistent\", function () { pm.expect(asset.name).to.equal(\"Postman CRUD aktualisiert\"); pm.expect(asset.serialNumber).to.equal(null); pm.expect(asset.currency).to.equal(\"EUR\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{crudAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{crudAssetId}}"
+              ]
+            },
+            "description": "Prüft die Persistenz der PUT-Änderung."
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-06 – Asset löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.test(\"Antwortkörper ist leer\", () => pm.expect(pm.response.text()).to.equal(\"\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{crudAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{crudAssetId}}"
+              ]
+            },
+            "description": "Löscht das CRUD-Testasset."
+          },
+          "response": []
+        },
+        {
+          "name": "CRUD-07 – Gelöschtes Asset ist nicht mehr vorhanden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.unset(\"crudAssetId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{crudAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{crudAssetId}}"
+              ]
+            },
+            "description": "Nach DELETE muss dieselbe ID 404 liefern."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 Listenparameter und Sortierung",
+      "description": "Prüft Standardwerte, Grenzen, updatedSince, Offset und stabile Sortierung.",
+      "item": [
+        {
+          "name": "LIST-01 – Listenasset A erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"listAssetAId\", asset.id);",
+                  "pm.collectionVariables.set(\"listAssetAUpdatedAt\", asset.updatedAt);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erstellt Listenasset A für Filter-, Offset- und Sortiertests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-LIST-A\",\n  \"serialNumber\": \"SN-PM-{{runId}}-LIST-A\",\n  \"name\": \"Postman Test Asset LIST-A\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-02 – Listenasset B erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"listAssetBId\", asset.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erstellt Listenasset B für Filter-, Offset- und Sortiertests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-LIST-B\",\n  \"serialNumber\": \"SN-PM-{{runId}}-LIST-B\",\n  \"name\": \"Postman Test Asset LIST-B\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-03 – Listenasset C erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"listAssetCId\", asset.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erstellt Listenasset C für Filter-, Offset- und Sortiertests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-LIST-C\",\n  \"serialNumber\": \"SN-PM-{{runId}}-LIST-C\",\n  \"name\": \"Postman Test Asset LIST-C\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-04 – Standardwerte verwenden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "pm.test(\"Standardlimit ist höchstens 50\", () => pm.expect(assets.length).to.be.at.most(50));",
+                  "pm.test(\"Liste ist stabil nach updatedAt und ID sortiert\", function () {",
+                  "    for (let index = 1; index < assets.length; index += 1) {",
+                  "        const previous = assets[index - 1];",
+                  "        const current = assets[index];",
+                  "        const correctlyOrdered = previous.updatedAt < current.updatedAt",
+                  "            || (previous.updatedAt === current.updatedAt && previous.id.localeCompare(current.id) <= 0);",
+                  "        pm.expect(correctlyOrdered).to.equal(true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Ruft die Liste ohne Parameter ab; die Standardgrenze darf 50 nicht überschreiten."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-05 – Limit zwei",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "pm.test(\"Limit wird angewendet\", () => pm.expect(assets).to.have.lengthOf(2));",
+                  "pm.collectionVariables.set(\"listLimitSecondId\", assets[1].id);",
+                  "pm.test(\"Liste ist stabil nach updatedAt und ID sortiert\", function () {",
+                  "    for (let index = 1; index < assets.length; index += 1) {",
+                  "        const previous = assets[index - 1];",
+                  "        const current = assets[index];",
+                  "        const correctlyOrdered = previous.updatedAt < current.updatedAt",
+                  "            || (previous.updatedAt === current.updatedAt && previous.id.localeCompare(current.id) <= 0);",
+                  "        pm.expect(correctlyOrdered).to.equal(true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=2",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "2",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Fordert exakt zwei Ergebnisse an und speichert die zweite ID für den Offsetvergleich."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-06 – Offset eins",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "pm.test(\"Offset überspringt genau ein Asset\", function () { pm.expect(assets).to.have.lengthOf(1); pm.expect(assets[0].id).to.equal(pm.collectionVariables.get(\"listLimitSecondId\")); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=1&offset=1",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "offset",
+                  "value": "1",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Das erste Ergebnis bei offset=1 muss dem zweiten Ergebnis ohne Offset entsprechen."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-07 – updatedSince inklusiv",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const assets = pm.response.json();",
+                  "const boundary = pm.collectionVariables.get(\"listAssetAUpdatedAt\");",
+                  "pm.test(\"Alle Ergebnisse liegen auf oder nach der Grenze\", () => assets.forEach((asset) => pm.expect(asset.updatedAt >= boundary).to.equal(true)));",
+                  "pm.test(\"Alle drei erzeugten Listenassets sind enthalten\", function () { const ids = assets.map((asset) => asset.id); [\"A\", \"B\", \"C\"].forEach((letter) => pm.expect(ids).to.include(pm.collectionVariables.get(`listAsset${letter}Id`))); });",
+                  "pm.test(\"Liste ist stabil nach updatedAt und ID sortiert\", function () {",
+                  "    for (let index = 1; index < assets.length; index += 1) {",
+                  "        const previous = assets[index - 1];",
+                  "        const current = assets[index];",
+                  "        const correctlyOrdered = previous.updatedAt < current.updatedAt",
+                  "            || (previous.updatedAt === current.updatedAt && previous.id.localeCompare(current.id) <= 0);",
+                  "        pm.expect(correctlyOrdered).to.equal(true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?updatedSince={{listAssetAUpdatedAt}}&limit=100",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "updatedSince",
+                  "value": "{{listAssetAUpdatedAt}}",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Filtert ab dem updatedAt von Listenasset A und prüft den inklusiven Grenzwert."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-08 – Ungültiger Zeitstempel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld updatedSince zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.updatedSince\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?updatedSince=not-a-date",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "updatedSince",
+                  "value": "not-a-date",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "updatedSince ohne gültiges date-time-Format muss 400 liefern."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-09 – Limit null",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld limit zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.limit\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=0",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "0",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "limit=0 unterschreitet das Minimum und muss 400 liefern."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-10 – Limit über Maximum",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld limit zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.limit\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?limit=101",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "101",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "limit=101 überschreitet das Maximum und muss 400 liefern."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-11 – Negativer Offset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld offset zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.offset\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets?offset=-1",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "-1",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "offset=-1 muss 400 liefern."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-12 – Listenasset A löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.collectionVariables.unset(\"listAssetAId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{listAssetAId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{listAssetAId}}"
+              ]
+            },
+            "description": "Räumt ausschließlich Listenasset A dieses Testlaufs auf."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-13 – Listenasset B löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.collectionVariables.unset(\"listAssetBId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{listAssetBId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{listAssetBId}}"
+              ]
+            },
+            "description": "Räumt ausschließlich Listenasset B dieses Testlaufs auf."
+          },
+          "response": []
+        },
+        {
+          "name": "LIST-14 – Listenasset C löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.collectionVariables.unset(\"listAssetCId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{listAssetCId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{listAssetCId}}"
+              ]
+            },
+            "description": "Räumt ausschließlich Listenasset C dieses Testlaufs auf."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 Validierung und Eindeutigkeit",
+      "description": "Prüft Pflichtfelder, Formate, Wertebereiche und die beiden eindeutigen Geschäftsidentifikatoren.",
+      "item": [
+        {
+          "name": "VAL-01 – Fehlende Inventarnummer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld inventoryNumber zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.inventoryNumber\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Fehlende Inventarnummer muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serialNumber\": \"SN-PM-{{runId}}-MISSING\",\n  \"name\": \"Postman Test Asset MISSING\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-02 – Ungültiger Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld status zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.status\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Ungültiger Status muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-STATUS\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-STATUS\",\n  \"name\": \"Postman Test Asset BAD-STATUS\",\n  \"category\": \"production\",\n  \"status\": \"out_of_service\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-03 – Unvollständiger Standort",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld location.room zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.property(\"errors\").that.is.an(\"object\");",
+                  "    pm.expect(error.errors).to.have.property(\"location.room\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Unvollständiger Standort muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-LOCATION\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-LOCATION\",\n  \"name\": \"Postman Test Asset BAD-LOCATION\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-04 – Ungültiges Anschaffungsdatum",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld acquisitionDate zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.acquisitionDate\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Ungültiges Anschaffungsdatum muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-DATE\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-DATE\",\n  \"name\": \"Postman Test Asset BAD-DATE\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2023-02-29\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-05 – Negativer Anschaffungswert",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld acquisitionValue zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.acquisitionValue\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Negativer Anschaffungswert muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-NEGATIVE\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-NEGATIVE\",\n  \"name\": \"Postman Test Asset BAD-NEGATIVE\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": -0.01,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-06 – Mehr als zwei Nachkommastellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld acquisitionValue zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.acquisitionValue\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Mehr als zwei Nachkommastellen muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-PRECISION\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-PRECISION\",\n  \"name\": \"Postman Test Asset BAD-PRECISION\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 10.123,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-07 – Währung nicht grossgeschrieben",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld currency zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.currency\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Währung nicht grossgeschrieben muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-BAD-CURRENCY\",\n  \"serialNumber\": \"SN-PM-{{runId}}-BAD-CURRENCY\",\n  \"name\": \"Postman Test Asset BAD-CURRENCY\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"chf\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-08 – Grundlage für Duplicate-Tests erstellen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const asset = pm.response.json();",
+                  "pm.collectionVariables.set(\"duplicateAssetId\", asset.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Erstellt ein gültiges Asset, dessen Inventar- und Seriennummer anschließend doppelt gesendet werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-DUP\",\n  \"serialNumber\": \"SN-PM-{{runId}}-DUP\",\n  \"name\": \"Postman Test Asset DUP\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-09 – Doppelte Inventarnummer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld inventoryNumber zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.inventoryNumber\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Doppelte Inventarnummer muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-DUP\",\n  \"serialNumber\": \"SN-PM-{{runId}}-DUP-OTHER\",\n  \"name\": \"Postman Test Asset DUP\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-10 – Doppelte Seriennummer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});",
+                  "pm.test(\"Fehler ist dem Feld serialNumber zugeordnet\", function () {",
+                  "    pm.expect(error).to.have.nested.property(\"errors.serialNumber\").that.is.an(\"array\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Doppelte Seriennummer muss als feldbezogener Validierungsfehler abgelehnt werden.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventoryNumber\": \"AST-PM-{{runId}}-DUP-OTHER\",\n  \"serialNumber\": \"SN-PM-{{runId}}-DUP\",\n  \"name\": \"Postman Test Asset DUP-OTHER\",\n  \"category\": \"production\",\n  \"status\": \"active\",\n  \"location\": {\n    \"site\": \"Hauptsitz\",\n    \"building\": \"A\",\n    \"room\": \"101\"\n  },\n  \"acquisitionDate\": \"2024-01-15\",\n  \"acquisitionValue\": 1250.5,\n  \"currency\": \"CHF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VAL-11 – Duplicate-Testasset löschen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.collectionVariables.unset(\"duplicateAssetId\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{duplicateAssetId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{duplicateAssetId}}"
+              ]
+            },
+            "description": "Räumt das gültige Ausgangsasset der Duplicate-Tests auf."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 ObjectId-Fehler",
+      "description": "Prüft syntaktisch ungültige und syntaktisch gültige, aber unbekannte IDs.",
+      "item": [
+        {
+          "name": "ID-01 – Ungültige ObjectId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/not-an-object-id",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "not-an-object-id"
+              ]
+            },
+            "description": "Eine nicht-hexadezimale ID mit falscher Länge muss 404 liefern."
+          },
+          "response": []
+        },
+        {
+          "name": "ID-02 – Unbekannte ObjectId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "const error = pm.response.json();",
+                  "pm.test(\"Fehlerantwort enthält eine Nachricht\", function () {",
+                  "    pm.expect(error).to.have.property(\"message\").that.is.a(\"string\").and.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets/{{unknownObjectId}}",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{unknownObjectId}}"
+              ]
+            },
+            "description": "Eine gültige, zufällig erzeugte 24-stellige ObjectId muss 404 liefern."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 Rate-Limit",
+      "description": "Muss als letzte Gruppe der vollständigen Collection ausgeführt werden und verwendet einen bisher unbenutzten Token.",
+      "item": [
+        {
+          "name": "RATE-01 – 60 Aufrufe erlaubt, 61. blockiert",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const attempt = Number(pm.collectionVariables.get(\"rateLimitAttempt\") || \"1\");",
+                  "pm.variables.set(\"currentRateLimitAttempt\", attempt);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const attempt = Number(pm.variables.get(\"currentRateLimitAttempt\"));",
+                  "if (attempt <= 60) {",
+                  "    pm.test(`Rate-Limit-Aufruf ${attempt} ist erlaubt`, function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "    pm.collectionVariables.set(\"rateLimitAttempt\", String(attempt + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.test(\"Der 61. Aufruf wird begrenzt\", function () {",
+                  "        pm.response.to.have.status(429);",
+                  "    });",
+                  "    const error = pm.response.json();",
+                  "    pm.test(\"429 enthält eine Fehlermeldung\", function () {",
+                  "        pm.expect(error.message).to.be.a(\"string\").and.not.empty;",
+                  "    });",
+                  "    pm.collectionVariables.unset(\"runId\");",
+                  "    pm.collectionVariables.unset(\"unknownObjectId\");",
+                  "    pm.collectionVariables.unset(\"listAssetAUpdatedAt\");",
+                  "    pm.collectionVariables.unset(\"listLimitSecondId\");",
+                  "    pm.collectionVariables.unset(\"authAssetId\");",
+                  "    pm.collectionVariables.unset(\"crudAssetId\");",
+                  "    pm.collectionVariables.unset(\"listAssetAId\");",
+                  "    pm.collectionVariables.unset(\"listAssetBId\");",
+                  "    pm.collectionVariables.unset(\"listAssetCId\");",
+                  "    pm.collectionVariables.unset(\"duplicateAssetId\");",
+                  "    pm.collectionVariables.unset(\"rateLimitAttempt\");",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/assets",
+              "host": [
+                "{{apiBaseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "description": "Wiederholt sich im Collection Runner kontrolliert. Aufrufe 1 bis 60 erwarten 200, Aufruf 61 erwartet 429.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{rateLimitToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

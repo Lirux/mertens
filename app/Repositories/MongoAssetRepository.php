@@ -2,11 +2,14 @@
 
 namespace App\Repositories;
 
+use App\Exceptions\DuplicateAssetIdentifierException;
 use App\Models\Asset;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use MongoDB\BSON\UTCDateTime;
+use MongoDB\Driver\Exception\BulkWriteException;
 
 class MongoAssetRepository implements AssetRepository
 {
@@ -18,6 +21,27 @@ class MongoAssetRepository implements AssetRepository
         return Asset::query()
             ->latest()
             ->paginate(max(1, min(100, $perPage)));
+    }
+
+    /**
+     * @return Collection<int, Asset>
+     */
+    public function list(?DateTimeInterface $updatedSince = null, int $limit = 50, int $offset = 0): Collection
+    {
+        return Asset::query()
+            ->when(
+                $updatedSince,
+                fn ($query, DateTimeInterface $date) => $query->where(
+                    'updated_at',
+                    '>=',
+                    $this->toUtcDateTime($date),
+                ),
+            )
+            ->orderBy('updated_at')
+            ->orderBy('_id')
+            ->skip(max(0, $offset))
+            ->limit(max(1, min(100, $limit)))
+            ->get();
     }
 
     public function find(string $id): ?Asset
@@ -40,7 +64,11 @@ class MongoAssetRepository implements AssetRepository
             unset($attributes['serial_number']);
         }
 
-        return Asset::query()->create($attributes);
+        try {
+            return Asset::query()->create($attributes);
+        } catch (BulkWriteException $exception) {
+            $this->throwTranslatedWriteException($exception);
+        }
     }
 
     /**
@@ -58,7 +86,11 @@ class MongoAssetRepository implements AssetRepository
             unset($attributes['serial_number']);
         }
 
-        $asset->fill($attributes)->save();
+        try {
+            $asset->fill($attributes)->save();
+        } catch (BulkWriteException $exception) {
+            $this->throwTranslatedWriteException($exception);
+        }
 
         return $asset->refresh();
     }
@@ -110,5 +142,18 @@ class MongoAssetRepository implements AssetRepository
         }
 
         return $value;
+    }
+
+    private function throwTranslatedWriteException(BulkWriteException $exception): never
+    {
+        if (! str_contains($exception->getMessage(), 'E11000 duplicate key')) {
+            throw $exception;
+        }
+
+        $field = str_contains($exception->getMessage(), 'assets_serial_number_unique')
+            ? 'serial_number'
+            : 'asset_number';
+
+        throw new DuplicateAssetIdentifierException($field, $exception);
     }
 }

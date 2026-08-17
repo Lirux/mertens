@@ -1,0 +1,395 @@
+openapi: 3.1.0
+
+info:
+  title: Mertens AG Asset Web API
+  version: 1.0.0
+  description: >
+    REST-Web-API zur Synchronisierung von Asset-Daten zwischen
+    der Asset-Management-Anwendung der Mertens AG und angebundenen
+    Umsystemen wie ERP und Buchhaltung.
+
+servers:
+  - url: /api/v1
+    description: Version 1 der Asset-Web-API
+
+tags:
+  - name: Assets
+    description: Operationen zur Verwaltung und Synchronisierung von Assets
+
+security:
+  - bearerAuth: []
+
+paths:
+  /assets:
+    get:
+      tags:
+        - Assets
+      summary: Liste von Assets abrufen
+      description: >
+        Benötigt die Token-Fähigkeit `assets:read`. Die Ergebnisse werden
+        deterministisch aufsteigend nach `updatedAt` und anschließend nach
+        dem technischen Identifikator sortiert.
+      operationId: getAssets
+      parameters:
+        - name: updatedSince
+          in: query
+          required: false
+          description: >
+            Es werden nur Assets zurückgegeben, die seit diesem
+            Zeitpunkt geändert wurden. Der Grenzwert ist inklusive.
+          schema:
+            type: string
+            format: date-time
+
+        - name: limit
+          in: query
+          required: false
+          description: Maximale Anzahl zurückzugebender Assets.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+
+        - name: offset
+          in: query
+          required: false
+          description: Anzahl der zu überspringenden Assets.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+
+      responses:
+        "200":
+          description: Liste der Assets erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    post:
+      tags:
+        - Assets
+      summary: Neues Asset erstellen
+      description: Benötigt die Token-Fähigkeit `assets:write`.
+      operationId: createAsset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+
+      responses:
+        "201":
+          description: Asset erfolgreich erstellt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /assets/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: >
+          Vom Server vergebener technischer Identifikator.
+          Clients müssen diesen Wert als undurchsichtige Zeichenfolge
+          behandeln und dürfen keine Struktur daraus ableiten.
+        schema:
+          type: string
+          example: "68a10f7d12ab34cd56ef7890"
+
+    get:
+      tags:
+        - Assets
+      summary: Einzelnes Asset abrufen
+      description: Benötigt die Token-Fähigkeit `assets:read`.
+      operationId: getAsset
+      responses:
+        "200":
+          description: Asset erfolgreich abgerufen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    put:
+      tags:
+        - Assets
+      summary: Bestehendes Asset vollständig aktualisieren
+      description: Benötigt die Token-Fähigkeit `assets:write`.
+      operationId: updateAsset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+
+      responses:
+        "200":
+          description: Asset erfolgreich aktualisiert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    delete:
+      tags:
+        - Assets
+      summary: Asset löschen
+      description: Benötigt die Token-Fähigkeit `assets:write`.
+      operationId: deleteAsset
+      responses:
+        "204":
+          description: Asset erfolgreich gelöscht.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Bearer Token zur Authentifizierung und Autorisierung
+        des aufrufenden Umsystems. Lesezugriffe benötigen `assets:read`,
+        Schreibzugriffe `assets:write`.
+
+  schemas:
+    AssetInput:
+      type: object
+      required:
+        - inventoryNumber
+        - name
+        - category
+        - status
+        - location
+        - acquisitionDate
+        - acquisitionValue
+        - currency
+
+      properties:
+        inventoryNumber:
+          type: string
+          maxLength: 50
+          description: Eindeutige betriebliche Inventarnummer.
+
+        serialNumber:
+          type:
+            - string
+            - "null"
+          maxLength: 100
+          description: Optionale Seriennummer des Assets.
+
+        name:
+          type: string
+          maxLength: 150
+          description: Bezeichnung des Assets.
+
+        category:
+          type: string
+          maxLength: 100
+          description: Kategorie des Assets.
+
+        status:
+          type: string
+          enum:
+            - active
+            - maintenance
+            - inactive
+            - retired
+          description: Aktueller Betriebsstatus des Assets.
+
+        location:
+          type: object
+          description: Strukturierter aktueller Standort des Assets.
+          required:
+            - site
+            - building
+            - room
+          properties:
+            site:
+              type: string
+              maxLength: 150
+              description: Standort oder Niederlassung des Assets.
+
+            building:
+              type: string
+              maxLength: 100
+              description: Gebäude innerhalb des Standorts.
+
+            room:
+              type: string
+              maxLength: 100
+              description: Raum oder Bereich innerhalb des Gebäudes.
+
+        acquisitionDate:
+          type: string
+          format: date
+          description: Anschaffungsdatum des Assets.
+
+        acquisitionValue:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          description: Anschaffungswert des Assets mit maximal zwei Nachkommastellen.
+
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Dreistelliger Währungscode, beispielsweise CHF.
+
+    Asset:
+      allOf:
+        - $ref: "#/components/schemas/AssetInput"
+
+        - type: object
+          required:
+            - id
+            - updatedAt
+
+          properties:
+            id:
+              type: string
+              readOnly: true
+              example: "68a10f7d12ab34cd56ef7890"
+              description: >
+                Vom Server vergebener technischer Identifikator.
+                Clients müssen diesen Wert als undurchsichtige
+                Zeichenfolge behandeln.
+
+            updatedAt:
+              type: string
+              format: date-time
+              readOnly: true
+              description: Zeitpunkt der letzten Änderung.
+
+    Error:
+      type: object
+      required:
+        - message
+
+      properties:
+        message:
+          type: string
+          description: Beschreibung des aufgetretenen Fehlers.
+
+        errors:
+          type: object
+          description: Optionale feldbezogene Validierungsfehler.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Die Listenparameter sind syntaktisch oder inhaltlich ungültig.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Unauthorized:
+      description: Es wurde keine gültige Authentifizierung übermittelt.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Forbidden:
+      description: >
+        Der authentifizierte Aufrufer ist für diese Operation
+        nicht berechtigt.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    NotFound:
+      description: Das angeforderte Asset wurde nicht gefunden.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    ValidationError:
+      description: Die übermittelten Asset-Daten sind ungültig oder nicht eindeutig.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    TooManyRequests:
+      description: Das Limit von 60 Aufrufen pro Minute und Token wurde überschritten.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\DuplicateAssetIdentifierException;
 use App\Models\Asset;
 use App\Repositories\AssetRepository;
 use MongoDB\BSON\Decimal128;
@@ -78,8 +79,17 @@ test('duplicate business identifiers are rejected', function (string $field) {
         $duplicate['serial_number'] = 'SN-UNIQUE-002';
     }
 
-    expect(fn () => $repository->create($duplicate))
-        ->toThrow(BulkWriteException::class);
+    $exception = null;
+
+    try {
+        $repository->create($duplicate);
+    } catch (DuplicateAssetIdentifierException $caughtException) {
+        $exception = $caughtException;
+    }
+
+    expect($exception)->toBeInstanceOf(DuplicateAssetIdentifierException::class)
+        ->and($exception?->getMessage())->toBe('An asset with this identifier already exists.')
+        ->and($exception?->field)->toBe($field);
 })->with(['asset_number', 'serial_number']);
 
 test('the collection validator rejects invalid assets', function (array $overrides) {
