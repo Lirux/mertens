@@ -1,0 +1,4 @@
+interface:
+  display_name: "Semantic Commit"
+  short_description: "Stage and commit only current-session changes"
+  default_prompt: "Use $semantic-commit to stage and commit only the changes made in this session without pushing."
