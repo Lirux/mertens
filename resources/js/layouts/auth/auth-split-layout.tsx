@@ -1,5 +1,11 @@
-import { Link, usePage } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { Link } from '@inertiajs/react';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -8,37 +14,48 @@ export default function AuthSplitLayout({
     title,
     description,
 }: AuthLayoutProps) {
-    const { name } = usePage().props;
-
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-                <div className="absolute inset-0 bg-zinc-900" />
-                <Link
-                    href={home()}
-                    className="relative z-20 flex items-center text-lg font-medium"
-                >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
-                    {name}
-                </Link>
-            </div>
-            <div className="w-full lg:p-8">
-                <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+        <div className="grid min-h-svh bg-background lg:grid-cols-[47%_53%]">
+            <aside className="hidden min-h-svh flex-col bg-zinc-950 px-[7vw] pt-[18vh] text-white lg:flex">
+                <div className="max-w-xl">
                     <Link
                         href={home()}
-                        className="relative z-20 flex items-center justify-center lg:hidden"
+                        className="text-xs font-semibold tracking-wide text-white uppercase"
                     >
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+                        Mertens AG
                     </Link>
-                    <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
-                        <h1 className="text-xl font-medium">{title}</h1>
-                        <p className="text-sm text-balance text-muted-foreground">
-                            {description}
-                        </p>
-                    </div>
-                    {children}
+                    <h1 className="mt-7 text-4xl leading-tight font-semibold tracking-tight text-balance xl:text-[2.5rem]">
+                        Industrieanlagen im Blick.
+                        <br />
+                        Serviceeinsätze im Griff.
+                    </h1>
+                    <p className="mt-6 max-w-lg text-base leading-7 text-zinc-300">
+                        Zentrale Verwaltung von Industrieanlagen, Standorten und
+                        Wartung.
+                    </p>
                 </div>
-            </div>
+            </aside>
+
+            <main className="flex min-h-svh items-center justify-center p-6 sm:p-10 lg:p-16">
+                <div className="w-full max-w-sm">
+                    <Link
+                        href={home()}
+                        className="mb-6 inline-flex text-xs font-semibold tracking-wide uppercase lg:hidden"
+                    >
+                        Mertens AG
+                    </Link>
+
+                    <Card className="gap-0 rounded-xl py-0 shadow-xs">
+                        <CardHeader className="gap-2 p-6 pb-0 sm:px-8 sm:pt-8">
+                            <CardTitle className="text-lg">{title}</CardTitle>
+                            <CardDescription>{description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 sm:p-8 sm:pt-6">
+                            {children}
+                        </CardContent>
+                    </Card>
+                </div>
+            </main>
         </div>
     );
 }

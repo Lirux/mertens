@@ -307,29 +307,116 @@ components:
           description: Dreistelliger Währungscode, beispielsweise CHF.
 
     Asset:
-      allOf:
-        - $ref: "#/components/schemas/AssetInput"
+      type: object
+      description: >
+        Vom Server ausgegebene Asset-Daten. Standort und Anschaffungsdatum
+        können bei intern erzeugten oder übernommenen Bestandsdaten null sein.
+      required:
+        - id
+        - inventoryNumber
+        - serialNumber
+        - name
+        - category
+        - status
+        - location
+        - acquisitionDate
+        - acquisitionValue
+        - currency
+        - updatedAt
 
-        - type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+          example: "68a10f7d12ab34cd56ef7890"
+          description: >
+            Vom Server vergebener technischer Identifikator.
+            Clients müssen diesen Wert als undurchsichtige
+            Zeichenfolge behandeln.
+
+        inventoryNumber:
+          type: string
+          maxLength: 50
+          description: Eindeutige betriebliche Inventarnummer.
+
+        serialNumber:
+          type:
+            - string
+            - "null"
+          maxLength: 100
+          description: Optionale Seriennummer des Assets.
+
+        name:
+          type: string
+          maxLength: 150
+          description: Bezeichnung des Assets.
+
+        category:
+          type: string
+          maxLength: 100
+          description: Kategorie des Assets.
+
+        status:
+          type: string
+          enum:
+            - active
+            - maintenance
+            - inactive
+            - retired
+          description: Aktueller Betriebsstatus des Assets.
+
+        location:
+          type:
+            - object
+            - "null"
+          description: >
+            Strukturierter aktueller Standort des Assets oder null,
+            wenn intern kein Standort hinterlegt ist.
           required:
-            - id
-            - updatedAt
-
+            - site
+            - building
+            - room
           properties:
-            id:
+            site:
               type: string
-              readOnly: true
-              example: "68a10f7d12ab34cd56ef7890"
-              description: >
-                Vom Server vergebener technischer Identifikator.
-                Clients müssen diesen Wert als undurchsichtige
-                Zeichenfolge behandeln.
+              maxLength: 150
+              description: Standort oder Niederlassung des Assets.
 
-            updatedAt:
+            building:
               type: string
-              format: date-time
-              readOnly: true
-              description: Zeitpunkt der letzten Änderung.
+              maxLength: 100
+              description: Gebäude innerhalb des Standorts.
+
+            room:
+              type: string
+              maxLength: 100
+              description: Raum oder Bereich innerhalb des Gebäudes.
+
+        acquisitionDate:
+          type:
+            - string
+            - "null"
+          format: date
+          description: >
+            Anschaffungsdatum des Assets oder null, wenn intern kein
+            Anschaffungsdatum hinterlegt ist.
+
+        acquisitionValue:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          description: Anschaffungswert des Assets mit maximal zwei Nachkommastellen.
+
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Dreistelliger Währungscode, beispielsweise CHF.
+
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Zeitpunkt der letzten Änderung.
 
     Error:
       type: object

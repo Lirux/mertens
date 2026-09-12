@@ -3,10 +3,13 @@
 namespace Database\Seeders;
 
 use App\Models\Asset;
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
+use MongoDB\Collection as MongoCollection;
 
 class AssetSeeder extends Seeder
 {
@@ -17,18 +20,35 @@ class AssetSeeder extends Seeder
      */
     public function run(): void
     {
-        foreach ($this->assets() as $asset) {
-            Asset::query()->updateOrCreate(
-                ['asset_number' => $asset['asset_number']],
-                $asset,
+        $user = User::query()->where('email', 'test@example.com')->first();
+        $recordedBy = [
+            'id' => $user?->id,
+            'name' => $user?->name ?? 'Demo-Daten',
+        ];
+
+        foreach ($this->assets($recordedBy) as $attributes) {
+            $maintenanceHistory = $attributes['maintenance_history'];
+            unset($attributes['maintenance_history']);
+
+            $asset = Asset::query()->updateOrCreate(
+                ['asset_number' => $attributes['asset_number']],
+                $attributes,
+            );
+
+            Asset::query()->raw(
+                fn (MongoCollection $collection) => $collection->updateOne(
+                    ['_id' => new ObjectId((string) $asset->getKey())],
+                    ['$set' => ['maintenance_history' => $maintenanceHistory]],
+                ),
             );
         }
     }
 
     /**
+     * @param  array{id: string|null, name: string}  $recordedBy
      * @return list<array<string, mixed>>
      */
-    private function assets(): array
+    private function assets(array $recordedBy): array
     {
         return [
             $this->asset(
@@ -44,6 +64,8 @@ class AssetSeeder extends Seeder
                 supplierName: 'DMG MORI Schweiz AG',
                 lastMaintenance: '2026-02-15',
                 nextMaintenance: '2027-02-15',
+                maintenanceNote: 'Führungen geschmiert und Werkzeugwechsler geprüft.',
+                recordedBy: $recordedBy,
             ),
             $this->asset(
                 assetNumber: 'AST-00002',
@@ -58,6 +80,8 @@ class AssetSeeder extends Seeder
                 supplierName: 'Atlas Copco (Schweiz) AG',
                 lastMaintenance: '2025-08-20',
                 nextMaintenance: '2026-08-20',
+                maintenanceNote: 'Filter ersetzt; Druckverlust wird weiter beobachtet.',
+                recordedBy: $recordedBy,
             ),
             $this->asset(
                 assetNumber: 'AST-00003',
@@ -72,6 +96,8 @@ class AssetSeeder extends Seeder
                 supplierName: 'Linde Material Handling Schweiz AG',
                 lastMaintenance: '2026-04-10',
                 nextMaintenance: '2027-04-10',
+                maintenanceNote: 'Batterie, Bremsen und Hubmast geprüft.',
+                recordedBy: $recordedBy,
             ),
             $this->asset(
                 assetNumber: 'AST-00004',
@@ -86,6 +112,8 @@ class AssetSeeder extends Seeder
                 supplierName: 'Mitutoyo (Schweiz) AG',
                 lastMaintenance: '2025-11-01',
                 nextMaintenance: '2026-11-01',
+                maintenanceNote: 'Kalibrierung abgeschlossen und Messprotokoll geprüft.',
+                recordedBy: $recordedBy,
             ),
         ];
     }
@@ -106,7 +134,13 @@ class AssetSeeder extends Seeder
         string $supplierName,
         string $lastMaintenance,
         string $nextMaintenance,
+        string $maintenanceNote,
+        array $recordedBy,
     ): array {
+        $lastMaintenanceDate = Carbon::parse($lastMaintenance);
+        $nextMaintenanceDate = Carbon::parse($nextMaintenance);
+        $previousMaintenanceDate = $lastMaintenanceDate->copy()->subYear();
+
         return [
             'asset_number' => $assetNumber,
             'name' => $name,
@@ -125,12 +159,52 @@ class AssetSeeder extends Seeder
                 'name' => $supplierName,
             ],
             'maintenance' => [
-                'last_completed_at' => new UTCDateTime(Carbon::parse($lastMaintenance)),
-                'next_due_at' => new UTCDateTime(Carbon::parse($nextMaintenance)),
+                'last_completed_at' => new UTCDateTime($lastMaintenanceDate),
+                'next_due_at' => new UTCDateTime($nextMaintenanceDate),
                 'interval_days' => 365,
+                'note' => $maintenanceNote,
+            ],
+            'maintenance_history' => [
+                $this->maintenanceHistoryEntry(
+                    completedAt: $lastMaintenanceDate,
+                    nextDueAt: $nextMaintenanceDate,
+                    statusAfter: $status,
+                    note: $maintenanceNote,
+                    recordedBy: $recordedBy,
+                ),
+                $this->maintenanceHistoryEntry(
+                    completedAt: $previousMaintenanceDate,
+                    nextDueAt: $lastMaintenanceDate,
+                    statusAfter: Asset::STATUS_ACTIVE,
+                    note: 'Planmässige Jahreswartung ohne Beanstandungen.',
+                    recordedBy: $recordedBy,
+                ),
             ],
             'acquired_at' => '2022-01-01',
             'warranty_until' => '2027-12-31',
+        ];
+    }
+
+    /**
+     * @param  array{id: string|null, name: string}  $recordedBy
+     * @return array<string, mixed>
+     */
+    private function maintenanceHistoryEntry(
+        Carbon $completedAt,
+        Carbon $nextDueAt,
+        string $statusAfter,
+        string $note,
+        array $recordedBy,
+    ): array {
+        return [
+            '_id' => new ObjectId,
+            'completed_at' => new UTCDateTime($completedAt),
+            'next_due_at' => new UTCDateTime($nextDueAt),
+            'interval_days' => 365,
+            'status_after' => $statusAfter,
+            'note' => $note,
+            'recorded_by' => $recordedBy,
+            'recorded_at' => new UTCDateTime($completedAt->copy()->setTime(16, 0)),
         ];
     }
 }

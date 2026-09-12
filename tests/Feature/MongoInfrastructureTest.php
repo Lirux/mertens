@@ -71,7 +71,19 @@ test('all required collections validators and indexes are provisioned', function
             'retired',
         ])
         ->and($assetSchema['properties']['acquisition_value']['bsonType'])->toBe('decimal')
-        ->and($assetSchema['properties']['currency']['pattern'])->toBe('^[A-Z]{3}$');
+        ->and($assetSchema['properties']['currency']['pattern'])->toBe('^[A-Z]{3}$')
+        ->and($assetSchema['properties']['maintenance_history']['bsonType'])->toBe('array')
+        ->and($assetSchema['properties']['maintenance_history']['items']['properties'])
+        ->toHaveKeys([
+            '_id',
+            'completed_at',
+            'next_due_at',
+            'interval_days',
+            'status_after',
+            'note',
+            'recorded_by',
+            'recorded_at',
+        ]);
 
     $assetIndexes = collect(iterator_to_array($database->assets->listIndexes()))
         ->keyBy(fn (IndexInfo $index): string => $index->getName());
@@ -195,6 +207,9 @@ test('the database seeder creates reproducible users and assets', function () {
         ->and($assets->pluck('currency')->unique()->all())->toBe(['CHF'])
         ->and($assets->every(
             fn (Asset $asset): bool => $asset->getRawOriginal('acquisition_value') instanceof Decimal128,
+        ))->toBeTrue()
+        ->and($assets->every(
+            fn (Asset $asset): bool => count($asset->maintenance_history ?? []) === 2,
         ))->toBeTrue()
         ->and($assets->firstWhere('asset_number', 'AST-00004')?->status)->toBe(Asset::STATUS_INACTIVE);
 });

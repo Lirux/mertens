@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use Database\Factories\AssetFactory;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
-use MongoDB\BSON\UTCDateTime;
 use MongoDB\Laravel\Eloquent\Model;
 
 /**
@@ -20,7 +20,8 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string $currency
  * @property array{site: string, building: string, room: string}|null $location
  * @property array{external_id: string, name: string}|null $supplier
- * @property array{last_completed_at: UTCDateTime, next_due_at: UTCDateTime, interval_days: int}|null $maintenance
+ * @property array{last_completed_at: DateTimeInterface|null, next_due_at: DateTimeInterface, interval_days: int, note?: string|null}|null $maintenance
+ * @property list<array{id?: mixed, _id?: mixed, completed_at: DateTimeInterface, next_due_at: DateTimeInterface, interval_days: int, status_after: string, note?: string|null, recorded_by: array{id: string|null, name: string}, recorded_at: DateTimeInterface}>|null $maintenance_history
  * @property Carbon|null $acquired_at
  * @property Carbon|null $warranty_until
  * @property Carbon|null $created_at
