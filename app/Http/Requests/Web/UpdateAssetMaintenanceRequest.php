@@ -40,7 +40,8 @@ class UpdateAssetMaintenanceRequest extends FormRequest
     }
 
     /**
-     * Calculate the follow-up date on the server so it cannot be tampered with by the browser.
+     * Berechnet den Folgetermin verbindlich auf dem Server aus Wartungsdatum und
+     * Intervall. Die Vorschau im Browser wird nicht als Eingabewert übernommen.
      *
      * @return array{status: string, maintenance: array{last_completed_at: CarbonImmutable, next_due_at: CarbonImmutable, interval_days: int, note: string|null}}
      */

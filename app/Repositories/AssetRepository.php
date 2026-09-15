@@ -7,6 +7,10 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
+/**
+ * Datenzugriffsvertrag für Web-App und API. Controller verwenden diesen Vertrag,
+ * damit MongoDB-Abfragen und BSON-Datentypen in der Implementierung bleiben.
+ */
 interface AssetRepository
 {
     /**

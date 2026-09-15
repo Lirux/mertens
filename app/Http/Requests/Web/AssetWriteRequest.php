@@ -62,7 +62,8 @@ abstract class AssetWriteRequest extends FormRequest
     }
 
     /**
-     * Convert the browser-facing camelCase contract to MongoDB model attributes.
+     * Übersetzt die Formularfelder in MongoDB-Attribute. Leere optionale Gruppen
+     * werden entfernt; Stammdatenänderungen schreiben die Wartungshistorie nicht um.
      *
      * @return array<string, mixed>
      */

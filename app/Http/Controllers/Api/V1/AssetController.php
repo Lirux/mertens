@@ -13,6 +13,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * Stellt die fünf CRUD-Operationen des OpenAPI-Vertrags bereit. Die API-Routen
+ * prüfen Bearer-Token und Fähigkeiten; Requests validieren die Nutzdaten.
+ */
 class AssetController extends Controller
 {
     public function __construct(private readonly AssetRepository $assets) {}

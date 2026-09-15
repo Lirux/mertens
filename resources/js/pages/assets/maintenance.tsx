@@ -48,6 +48,7 @@ export default function AssetMaintenance({ asset, maintenanceHistory }: Props) {
     const [intervalDays, setIntervalDays] = useState(
         String(asset.maintenance?.intervalDays ?? 180),
     );
+    // Lokale Vorschau des Folgetermins; beim Speichern berechnet Laravel ihn erneut.
     const nextDueAt = useMemo(() => {
         const interval = Number(intervalDays);
 

@@ -10,7 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AssetResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
+     * Gibt ausschliesslich die Felder des API-Vertrags aus. Lieferanten und
+     * Wartungshistorie bleiben intern; der Geldwert wird als JSON-Zahl ausgegeben.
      *
      * @return array<string, mixed>
      */

@@ -8,6 +8,7 @@ type Props = {
     emptyMessage?: string;
 };
 
+/** Zeigt die serverseitig sortierten Einträge als Desktop-Tabelle oder mobile Karten. */
 export function AssetMaintenanceHistory({
     entries,
     emptyMessage = 'Für dieses Asset wurde noch keine Wartung protokolliert.',

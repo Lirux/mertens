@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
 abstract class AssetWriteRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Die Routen-Middleware prüft den Bearer-Token und die Fähigkeit assets:write.
      */
     public function authorize(): bool
     {
@@ -51,6 +51,9 @@ abstract class AssetWriteRequest extends FormRequest
     }
 
     /**
+     * Übersetzt die öffentlichen CamelCase-Felder in interne MongoDB-Attribute.
+     * POST und PUT verlangen dieselben Pflichtfelder; ein PUT ist kein Teilupdate.
+     *
      * @return array<string, mixed>
      */
     public function assetAttributes(): array

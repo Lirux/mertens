@@ -18,6 +18,9 @@ use RuntimeException;
 class MongoAssetRepository implements AssetRepository
 {
     /**
+     * Kombiniert die Web-Filter. Suchzeichen werden als Text behandelt, damit
+     * beispielsweise ein Punkt in einer Seriennummer kein Regex-Platzhalter ist.
+     *
      * @return LengthAwarePaginator<int, Asset>
      */
     public function paginate(
@@ -117,6 +120,9 @@ class MongoAssetRepository implements AssetRepository
     }
 
     /**
+     * Liefert Änderungen inklusive des Grenzzeitpunkts. Die zusätzliche Sortierung
+     * nach ID hält die Reihenfolge bei identischen Änderungszeitpunkten stabil.
+     *
      * @return Collection<int, Asset>
      */
     public function list(?DateTimeInterface $updatedSince = null, int $limit = 50, int $offset = 0): Collection
@@ -193,6 +199,9 @@ class MongoAssetRepository implements AssetRepository
     }
 
     /**
+     * Aktualisiert Wartungsstand und Historie in einem atomaren Schreibvorgang.
+     * Der protokollierende Benutzer stammt aus der authentifizierten Sitzung.
+     *
      * @param  array{status: string, maintenance: array{last_completed_at: DateTimeInterface, next_due_at: DateTimeInterface, interval_days: int, note: string|null}}  $attributes
      */
     public function recordMaintenance(
@@ -245,6 +254,9 @@ class MongoAssetRepository implements AssetRepository
     }
 
     /**
+     * Die Detailseite erhält die ganze Historie, das Wartungsformular nur einen
+     * Ausschnitt. Sortiert wird zuerst nach Wartungs-, dann nach Erfassungsdatum.
+     *
      * @return list<array<string, mixed>>
      */
     public function maintenanceHistory(Asset $asset, ?int $limit = null): array
