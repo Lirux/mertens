@@ -5,6 +5,10 @@ namespace App\Policies;
 use App\Models\Asset;
 use App\Models\User;
 
+/**
+ * Web-Zugriffe: verifizierte Mitarbeitende lesen, Anlagenverwalter schreiben.
+ * Die Integrations-API verwendet separat die Berechtigungen ihres Bearer-Tokens.
+ */
 class AssetPolicy
 {
     /**
@@ -28,7 +32,7 @@ class AssetPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasVerifiedEmail();
+        return $user->hasVerifiedEmail() && $user->isAssetManager();
     }
 
     /**
@@ -36,7 +40,7 @@ class AssetPolicy
      */
     public function update(User $user, Asset $asset): bool
     {
-        return $user->hasVerifiedEmail();
+        return $user->hasVerifiedEmail() && $user->isAssetManager();
     }
 
     /**
@@ -44,7 +48,7 @@ class AssetPolicy
      */
     public function delete(User $user, Asset $asset): bool
     {
-        return $user->hasVerifiedEmail();
+        return $user->hasVerifiedEmail() && $user->isAssetManager();
     }
 
     /**

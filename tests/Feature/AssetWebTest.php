@@ -15,7 +15,7 @@ afterEach(function (): void {
 test('asset pages require a verified session', function (string $routeName) {
     $this->get(route($routeName))->assertRedirect(route('login'));
 
-    $this->actingAs(User::factory()->unverified()->create())
+    $this->actingAs(User::factory()->assetManager()->unverified()->create())
         ->get(route($routeName))
         ->assertRedirect(route('verification.notice'));
 })->with(['dashboard', 'assets.index', 'assets.create']);
@@ -43,7 +43,7 @@ test('the reproducible demo data includes a verified user and assets', function 
 
 test('dashboard shows calculated asset and maintenance figures', function () {
     Carbon::setTestNow('2026-08-17 10:00:00');
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     createWebAsset([
         'asset_number' => 'AST-00001',
@@ -87,7 +87,7 @@ test('dashboard shows calculated asset and maintenance figures', function () {
 });
 
 test('asset index provides sorted pagination and categories', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     foreach (range(21, 1) as $number) {
         createWebAsset([
@@ -127,7 +127,7 @@ test('asset index provides sorted pagination and categories', function () {
 
 test('asset filters combine literal search status category and maintenance date', function () {
     Carbon::setTestNow('2026-08-17 10:00:00');
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     createWebAsset([
         'asset_number' => 'AST-[42]',
@@ -176,7 +176,7 @@ test('asset filters combine literal search status category and maintenance date'
 });
 
 test('asset index has a complete empty result contract', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->assetManager()->create())
         ->get(route('assets.index', ['search' => 'not-found']))
         ->assertInertia(fn (Assert $page) => $page
             ->component('assets/index')
@@ -187,7 +187,7 @@ test('asset index has a complete empty result contract', function () {
 });
 
 test('asset create edit detail and maintenance pages expose their inertia contracts', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
     $asset = createWebAsset([
         'asset_number' => 'AST-00433',
         'name' => 'Prüfstand 4.3.3',
@@ -230,7 +230,7 @@ test('asset create edit detail and maintenance pages expose their inertia contra
 });
 
 test('a verified user can create an asset with all supported fields', function () {
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->assetManager()->create())
         ->post(route('assets.store'), validWebAssetPayload());
 
     $asset = Asset::query()->where('asset_number', 'AST-90001')->firstOrFail();
@@ -267,7 +267,7 @@ test('optional serial supplier and maintenance fields can be omitted', function 
         'maintenance' => ['nextDueAt' => '', 'intervalDays' => ''],
     ]);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->assetManager()->create())
         ->post(route('assets.store'), $payload)
         ->assertSessionHasNoErrors();
 
@@ -289,7 +289,7 @@ test('asset form validates nested and dependent fields', function () {
         'maintenance' => ['nextDueAt' => '', 'intervalDays' => 180],
     ]);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->assetManager()->create())
         ->from(route('assets.create'))
         ->post(route('assets.store'), $payload)
         ->assertRedirect(route('assets.create'))
@@ -309,7 +309,7 @@ test('asset number and serial number must remain unique', function () {
         'serial_number' => 'SN-WEB-90001',
     ]);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->assetManager()->create())
         ->post(route('assets.store'), validWebAssetPayload())
         ->assertSessionHasErrors(['inventoryNumber', 'serialNumber']);
 
@@ -332,7 +332,7 @@ test('a verified user can update an asset without colliding with its own identif
         ],
     ]);
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->assetManager()->create())
         ->put(route('assets.update', $asset), $payload);
 
     $response
@@ -351,7 +351,7 @@ test('a verified user can update an asset without colliding with its own identif
 test('maintenance completion calculates the next date and updates status and note', function () {
     Carbon::setTestNow('2026-08-17 10:00:00');
     $asset = createWebAsset(['status' => Asset::STATUS_MAINTENANCE]);
-    $user = User::factory()->create(['name' => 'Nina Beispiel']);
+    $user = User::factory()->assetManager()->create(['name' => 'Nina Beispiel']);
 
     $response = $this->actingAs($user)
         ->put(route('assets.maintenance.update', $asset), [
@@ -396,7 +396,7 @@ test('maintenance completion calculates the next date and updates status and not
 
 test('maintenance may keep an asset in maintenance and validates its limits', function () {
     $asset = createWebAsset();
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     $this->actingAs($user)
         ->put(route('assets.maintenance.update', $asset), [
@@ -431,7 +431,7 @@ test('maintenance may keep an asset in maintenance and validates its limits', fu
 test('maintenance history is sorted newest first and limited on the maintenance form', function () {
     Carbon::setTestNow('2026-08-17 10:00:00');
     $asset = createWebAsset();
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     foreach (['2026-05-01', '2026-08-01', '2026-06-01', '2026-07-01'] as $completedAt) {
         $this->actingAs($user)
@@ -469,7 +469,7 @@ test('editing asset master data does not rewrite maintenance history', function 
         'asset_number' => 'AST-90001',
         'serial_number' => 'SN-WEB-90001',
     ]);
-    $user = User::factory()->create();
+    $user = User::factory()->assetManager()->create();
 
     $this->actingAs($user)
         ->put(route('assets.maintenance.update', $asset), [
@@ -494,7 +494,7 @@ test('editing asset master data does not rewrite maintenance history', function 
 test('a verified user can delete an asset and receives confirmation', function () {
     $asset = createWebAsset();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->assetManager()->create())
         ->delete(route('assets.destroy', $asset));
 
     $response
@@ -507,7 +507,7 @@ test('a verified user can delete an asset and receives confirmation', function (
 });
 
 test('unknown and malformed asset identifiers return not found', function (string $identifier) {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->assetManager()->create())
         ->get('/assets/'.$identifier)
         ->assertNotFound();
 })->with([str_repeat('a', 24), 'not-an-object-id']);

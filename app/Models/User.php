@@ -17,6 +17,7 @@ use MongoDB\Laravel\Auth\User as Authenticatable;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property string|null $role
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -31,6 +32,23 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    public const ROLE_EMPLOYEE = 'employee';
+
+    public const ROLE_ASSET_MANAGER = 'asset_manager';
+
+    /**
+     * Neue Registrierungen erhalten nur Leserechte. Die Rolle ist bewusst nicht
+     * massenzuweisbar; nur Seeder und der administrative CLI-Befehl setzen sie.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = ['role' => self::ROLE_EMPLOYEE];
+
+    public function isAssetManager(): bool
+    {
+        return $this->role === self::ROLE_ASSET_MANAGER;
+    }
 
     /**
      * Get the attributes that should be cast.

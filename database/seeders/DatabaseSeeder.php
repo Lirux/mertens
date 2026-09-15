@@ -18,7 +18,18 @@ class DatabaseSeeder extends Seeder
         User::query()->updateOrCreate(
             ['email' => 'test@example.com'],
             [
-                'name' => 'Test User',
+                'name' => 'Demo Anlagenverwalter',
+                'role' => User::ROLE_ASSET_MANAGER,
+                'email_verified_at' => now(),
+                'password' => 'password',
+            ],
+        );
+
+        User::query()->updateOrCreate(
+            ['email' => 'mitarbeiter@example.com'],
+            [
+                'name' => 'Demo Mitarbeiter',
+                'role' => User::ROLE_EMPLOYEE,
                 'email_verified_at' => now(),
                 'password' => 'password',
             ],

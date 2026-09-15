@@ -1,4 +1,4 @@
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Form, Head, Link, setLayoutProps, usePage } from '@inertiajs/react';
 import {
     CalendarCheck,
     MapPin,
@@ -70,6 +70,8 @@ function DetailItem({
 }
 
 export default function ShowAsset({ asset, maintenanceHistory }: Props) {
+    const { canManageAssets } = usePage().props.auth;
+    // Der Titel in der persistenten Navigation folgt dem aktuell geöffneten Asset.
     setLayoutProps<{ breadcrumbs: BreadcrumbItem[] }>({
         breadcrumbs: [
             { title: 'Dashboard', href: dashboard() },
@@ -94,69 +96,71 @@ export default function ShowAsset({ asset, maintenanceHistory }: Props) {
                             {asset.inventoryNumber}
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={editMaintenance(asset)}>
-                                <CalendarCheck />
-                                Wartung erfassen
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href={editAsset(asset)}>
-                                <Pencil />
-                                Bearbeiten
-                            </Link>
-                        </Button>
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className="text-destructive hover:text-destructive"
-                                >
-                                    <Trash2 />
-                                    Löschen
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>
-                                        Asset endgültig löschen?
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                        {asset.inventoryNumber} – {asset.name}{' '}
-                                        wird unwiderruflich entfernt. Dieser
-                                        Vorgang kann nicht rückgängig gemacht
-                                        werden.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <Form
-                                    {...destroyAsset.form(asset)}
-                                    disableWhileProcessing
-                                >
-                                    {({ processing }) => (
-                                        <DialogFooter>
-                                            <DialogClose asChild>
+                    {canManageAssets && (
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" asChild>
+                                <Link href={editMaintenance(asset)}>
+                                    <CalendarCheck />
+                                    Wartung erfassen
+                                </Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href={editAsset(asset)}>
+                                    <Pencil />
+                                    Bearbeiten
+                                </Link>
+                            </Button>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 />
+                                        Löschen
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>
+                                            Asset endgültig löschen?
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                            {asset.inventoryNumber} –{' '}
+                                            {asset.name} wird unwiderruflich
+                                            entfernt. Dieser Vorgang kann nicht
+                                            rückgängig gemacht werden.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <Form
+                                        {...destroyAsset.form(asset)}
+                                        disableWhileProcessing
+                                    >
+                                        {({ processing }) => (
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                    >
+                                                        Abbrechen
+                                                    </Button>
+                                                </DialogClose>
                                                 <Button
-                                                    type="button"
-                                                    variant="outline"
+                                                    type="submit"
+                                                    variant="destructive"
+                                                    disabled={processing}
                                                 >
-                                                    Abbrechen
+                                                    {processing && <Spinner />}
+                                                    Asset löschen
                                                 </Button>
-                                            </DialogClose>
-                                            <Button
-                                                type="submit"
-                                                variant="destructive"
-                                                disabled={processing}
-                                            >
-                                                {processing && <Spinner />}
-                                                Asset löschen
-                                            </Button>
-                                        </DialogFooter>
-                                    )}
-                                </Form>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
+                                            </DialogFooter>
+                                        )}
+                                    </Form>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">

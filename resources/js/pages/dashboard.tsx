@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowRight, Boxes, CalendarClock, CircleOff } from 'lucide-react';
 import { AssetStatusBadge } from '@/components/asset-status-badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ type Props = {
 };
 
 export default function Dashboard({ stats, upcomingMaintenance }: Props) {
+    const { canManageAssets } = usePage().props.auth;
+
     return (
         <>
             <Head title="Dashboard" />
@@ -162,9 +164,11 @@ export default function Dashboard({ stats, upcomingMaintenance }: Props) {
                     <Button asChild>
                         <Link href={assetsIndex()}>Assets anzeigen</Link>
                     </Button>
-                    <Button variant="outline" asChild>
-                        <Link href={createAsset()}>Asset erfassen</Link>
-                    </Button>
+                    {canManageAssets && (
+                        <Button variant="outline" asChild>
+                            <Link href={createAsset()}>Asset erfassen</Link>
+                        </Button>
+                    )}
                 </div>
             </div>
         </>
