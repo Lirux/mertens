@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Models\User;
+use App\Repositories\AssetRepository;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use MongoDB\BSON\ObjectId;
@@ -29,6 +30,15 @@ test('the reproducible demo data includes a verified user and assets', function 
         ->and(Asset::query()->get()->every(
             fn (Asset $asset): bool => count($asset->maintenance_history ?? []) === 2,
         ))->toBeTrue();
+
+    $asset = Asset::query()->where('asset_number', 'AST-00001')->firstOrFail();
+    $history = app(AssetRepository::class)->maintenanceHistory($asset);
+
+    expect($history[0]['recorded_by'])->toBe([
+        'id' => $user->id,
+        'name' => $user->name,
+    ])
+        ->and($history[0]['note'])->toBe('Führungen geschmiert und Werkzeugwechsler geprüft.');
 });
 
 test('dashboard shows calculated asset and maintenance figures', function () {

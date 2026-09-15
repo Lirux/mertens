@@ -31,3 +31,7 @@ yarn-error.log
 /.zed
 /tmp
 /output
+/screenshots/*
+AUFGABE_*.md
+*.zip
+*.docx

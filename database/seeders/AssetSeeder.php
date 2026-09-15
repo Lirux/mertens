@@ -9,7 +9,8 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
-use MongoDB\Collection as MongoCollection;
+use MongoDB\Laravel\Connection;
+use RuntimeException;
 
 class AssetSeeder extends Seeder
 {
@@ -23,7 +24,7 @@ class AssetSeeder extends Seeder
         $user = User::query()->where('email', 'test@example.com')->first();
         $recordedBy = [
             'id' => $user?->id,
-            'name' => $user?->name ?? 'Demo-Daten',
+            'name' => $user->name ?? 'Demo-Daten',
         ];
 
         foreach ($this->assets($recordedBy) as $attributes) {
@@ -35,11 +36,15 @@ class AssetSeeder extends Seeder
                 $attributes,
             );
 
-            Asset::query()->raw(
-                fn (MongoCollection $collection) => $collection->updateOne(
-                    ['_id' => new ObjectId((string) $asset->getKey())],
-                    ['$set' => ['maintenance_history' => $maintenanceHistory]],
-                ),
+            $connection = $asset->getConnection();
+
+            if (! $connection instanceof Connection) {
+                throw new RuntimeException('Asset demo data requires the MongoDB connection.');
+            }
+
+            $connection->getCollection($asset->getTable())->updateOne(
+                ['_id' => new ObjectId((string) $asset->getKey())],
+                ['$set' => ['maintenance_history' => $maintenanceHistory]],
             );
         }
     }
@@ -119,6 +124,7 @@ class AssetSeeder extends Seeder
     }
 
     /**
+     * @param  array{id: string|null, name: string}  $recordedBy
      * @return array<string, mixed>
      */
     private function asset(

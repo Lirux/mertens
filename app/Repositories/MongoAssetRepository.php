@@ -11,9 +11,8 @@ use Illuminate\Support\Carbon;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\Regex;
 use MongoDB\BSON\UTCDateTime;
-use MongoDB\Collection as MongoCollection;
 use MongoDB\Driver\Exception\BulkWriteException;
-use MongoDB\UpdateResult;
+use MongoDB\Laravel\Connection;
 use RuntimeException;
 
 class MongoAssetRepository implements AssetRepository
@@ -220,19 +219,22 @@ class MongoAssetRepository implements AssetRepository
             'recorded_at' => $recordedAt,
         ];
 
-        /** @var UpdateResult $result */
-        $result = Asset::query()->raw(
-            fn (MongoCollection $collection): UpdateResult => $collection->updateOne(
-                ['_id' => new ObjectId((string) $asset->getKey())],
-                [
-                    '$set' => [
-                        'status' => $attributes['status'],
-                        'maintenance' => $maintenance,
-                        'updated_at' => $recordedAt,
-                    ],
-                    '$push' => ['maintenance_history' => $historyEntry],
+        $connection = $asset->getConnection();
+
+        if (! $connection instanceof Connection) {
+            throw new RuntimeException('Maintenance records require the MongoDB connection.');
+        }
+
+        $result = $connection->getCollection($asset->getTable())->updateOne(
+            ['_id' => new ObjectId((string) $asset->getKey())],
+            [
+                '$set' => [
+                    'status' => $attributes['status'],
+                    'maintenance' => $maintenance,
+                    'updated_at' => $recordedAt,
                 ],
-            ),
+                '$push' => ['maintenance_history' => $historyEntry],
+            ],
         );
 
         if ($result->getMatchedCount() !== 1) {
@@ -250,16 +252,16 @@ class MongoAssetRepository implements AssetRepository
         $history = $asset->maintenance_history ?? [];
 
         usort($history, function (array $left, array $right): int {
-            $completedComparison = $this->dateTimestamp($right['completed_at'] ?? null)
-                <=> $this->dateTimestamp($left['completed_at'] ?? null);
+            $completedComparison = $this->dateTimestamp($right['completed_at'])
+                <=> $this->dateTimestamp($left['completed_at']);
 
             return $completedComparison !== 0
                 ? $completedComparison
-                : $this->dateTimestamp($right['recorded_at'] ?? null)
-                    <=> $this->dateTimestamp($left['recorded_at'] ?? null);
+                : $this->dateTimestamp($right['recorded_at'])
+                    <=> $this->dateTimestamp($left['recorded_at']);
         });
 
-        return array_values($limit === null ? $history : array_slice($history, 0, max(0, $limit)));
+        return $limit === null ? $history : array_slice($history, 0, max(0, $limit));
     }
 
     public function delete(Asset $asset): bool

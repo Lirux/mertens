@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
@@ -29,24 +30,13 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
-test('users with two factor enabled are redirected to two factor challenge', function () {
-    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-
-    Features::twoFactorAuthentication([
-        'confirm' => true,
-        'confirmPassword' => true,
-    ]);
-
-    $user = User::factory()->withTwoFactor()->create();
-
-    $response = $this->post(route('login'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ]);
-
-    $response->assertRedirect(route('two-factor.login'));
-    $response->assertSessionHas('login.id', $user->id);
-    $this->assertGuest();
+test('two factor authentication is disabled and its routes are unavailable', function () {
+    expect(Features::enabled(Features::twoFactorAuthentication()))->toBeFalse()
+        ->and(Route::has('two-factor.login'))->toBeFalse()
+        ->and(Route::has('two-factor.enable'))->toBeFalse()
+        ->and(Route::has('two-factor.disable'))->toBeFalse()
+        ->and(Route::has('two-factor.qr-code'))->toBeFalse()
+        ->and(Route::has('two-factor.recovery-codes'))->toBeFalse();
 });
 
 test('users can not authenticate with invalid password', function () {

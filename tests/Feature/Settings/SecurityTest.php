@@ -3,32 +3,8 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
-use Laravel\Fortify\Features;
 
-test('security page is displayed', function () {
-    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-
-    Features::twoFactorAuthentication([
-        'confirm' => true,
-        'confirmPassword' => true,
-    ]);
-
-    $user = User::factory()->create();
-
-    $this->actingAs($user)
-        ->get(route('security.edit'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('settings/security')
-            ->where('canManageTwoFactor', true)
-            ->where('twoFactorEnabled', false),
-        );
-});
-
-test('security page renders without two factor when feature is disabled', function () {
-    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-
-    config(['fortify.features' => []]);
-
+test('security page displays password settings without two factor controls', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -36,10 +12,19 @@ test('security page renders without two factor when feature is disabled', functi
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/security')
-            ->where('canManageTwoFactor', false)
+            ->has('passwordRules')
+            ->missing('canManageTwoFactor')
             ->missing('twoFactorEnabled')
             ->missing('requiresConfirmation'),
         );
+});
+
+test('security page requires a verified session', function () {
+    $this->get(route('security.edit'))->assertRedirect(route('login'));
+
+    $this->actingAs(User::factory()->unverified()->create())
+        ->get(route('security.edit'))
+        ->assertRedirect(route('verification.notice'));
 });
 
 test('password can be updated', function () {

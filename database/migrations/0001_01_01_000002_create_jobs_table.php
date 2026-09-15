@@ -26,7 +26,7 @@ return new class extends Migration
             ]);
         });
 
-        Schema::create('job_batches');
+        Schema::create('job_batches', function (Blueprint $collection): void {});
 
         Schema::create('failed_jobs', function (Blueprint $collection): void {
             $collection->unique('uuid', options: ['name' => 'failed_jobs_uuid_unique']);

@@ -15,12 +15,19 @@ return new class extends Migration
     {
         $assets = $this->assets();
         $recordedAt = new UTCDateTime;
-        $existingAssets = $assets->find([
-            'maintenance.last_completed_at' => ['$type' => 'date'],
-            'maintenance_history.0' => ['$exists' => false],
-        ]);
+        $existingAssets = $assets->find(
+            [
+                'maintenance.last_completed_at' => ['$type' => 'date'],
+                'maintenance_history.0' => ['$exists' => false],
+            ],
+            ['typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array']],
+        );
 
         foreach ($existingAssets as $asset) {
+            if (! is_array($asset)) {
+                throw new RuntimeException('The maintenance backfill requires array documents.');
+            }
+
             $maintenance = $asset['maintenance'];
 
             $assets->updateOne(
