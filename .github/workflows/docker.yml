@@ -1,0 +1,105 @@
+name: Docker image
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-*
+      - compose.yaml
+      - .github/workflows/docker.yml
+      - tests/Unit/DockerImageTest.php
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  image:
+    needs: tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKER_IMAGE: mertens:ci
+      DOCKER_SMOKE_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          extensions: mongodb-2.3.3, mbstring, intl
+          tools: composer:v2
+          coverage: none
+      - name: Install smoke test dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Build image
+        run: docker build --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag "$DOCKER_IMAGE" .
+      - name: Start isolated demo
+        run: docker compose up --detach --wait --wait-timeout 180
+      - name: Test HTTP login, roles and production assets
+        run: php artisan test --compact tests/Unit/DockerImageTest.php
+      - name: Check persistence and prevent reseeding on recreation
+        run: |
+          docker compose exec -T app sha256sum storage/app/private/docker-app-key > /tmp/key-before
+          docker compose exec -T mongodb mongosh mertens_demo --quiet --eval 'db.assets.updateOne({asset_number: "AST-00001"}, {$set: {name: "Docker persistence test"}})'
+          docker compose down
+          docker compose up --detach --wait --wait-timeout 180
+          docker compose exec -T app sha256sum storage/app/private/docker-app-key > /tmp/key-after
+          diff /tmp/key-before /tmp/key-after
+          docker compose exec -T mongodb mongosh mertens_demo --quiet --eval 'if (db.assets.findOne({asset_number: "AST-00001"}).name !== "Docker persistence test") { quit(1); }'
+          php artisan test --compact tests/Unit/DockerImageTest.php
+      - name: Publish tested architecture
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker tag "$DOCKER_IMAGE" "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$ARCH"
+          docker push "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$ARCH"
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Clean up isolated demo
+        if: always()
+        run: docker compose down --volumes
+
+  publish:
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Publish multi-platform version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create \
+            --tag "$image:$GITHUB_REF_NAME" \
+            --tag "$image:latest" \
+            "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-amd64" \
+            "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-arm64"

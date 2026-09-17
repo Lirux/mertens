@@ -1,0 +1,45 @@
+name: mertens-demo
+
+services:
+  app:
+    image: ${DOCKER_IMAGE:-ghcr.io/lirux/mertens:latest}
+    ports:
+      - "127.0.0.1:${DOCKER_PORT:-8080}:80"
+    environment:
+      APP_NAME: Mertens
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://localhost:${DOCKER_PORT:-8080}
+      DB_CONNECTION: mongodb
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: mertens_demo
+      SESSION_DRIVER: mongodb
+      SESSION_CONNECTION: mongodb
+      CACHE_STORE: mongodb
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+      LOG_CHANNEL: stderr
+      INERTIA_SSR_ENABLED: "false"
+      DEMO_SEED: "true"
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:8.0
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ping: 1}).ok ? 0 : 1)']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  app-storage:
+  mongodb-data:
